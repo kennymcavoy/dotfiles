@@ -1,0 +1,103 @@
+#!/bin/sh
+
+# Function to source files if they exist
+function zsh_add_file() {
+    [ -f "$ZDOTDIR/$1" ] && source "$ZDOTDIR/$1"
+}
+
+function zsh_add_plugin() {
+    PLUGIN_NAME=$(echo $1 | cut -d "/" -f 2)
+    if [ -d "$ZDOTDIR/plugins/$PLUGIN_NAME" ]; then 
+        # For plugins
+        zsh_add_file "plugins/$PLUGIN_NAME/$PLUGIN_NAME.plugin.zsh" || \
+        zsh_add_file "plugins/$PLUGIN_NAME/$PLUGIN_NAME.zsh"
+    else
+        git clone "https://github.com/$1.git" "$ZDOTDIR/plugins/$PLUGIN_NAME"
+    fi
+}
+
+function zsh_add_completion() {
+    PLUGIN_NAME=$(echo $1 | cut -d "/" -f 2)
+    if [ -d "$ZDOTDIR/plugins/$PLUGIN_NAME" ]; then 
+        # For completions
+		completion_file_path=$(ls $ZDOTDIR/plugins/$PLUGIN_NAME/_*)
+        zsh_add_file "plugins/$PLUGIN_NAME/$PLUGIN_NAME.plugin.zsh"
+
+        echo $fpath | grep -q "${completion_file_path}"
+        if [ $? -eq 0 ]; then
+            fpath+="$(dirname "${completion_file_path}")"
+        fi
+    else
+        git clone "https://github.com/$1.git" "$ZDOTDIR/plugins/$PLUGIN_NAME"
+		fpath+=$(ls $ZDOTDIR/plugins/$PLUGIN_NAME/_*)
+        [ -f $ZDOTDIR/.zccompdump ] && $ZDOTDIR/.zccompdump
+    fi
+	completion_file="$(basename "${completion_file_path}")"
+	if [ "$2" = true ] && compinit "${completion_file:1}"
+}
+
+function zsh_add_plugin_test() {
+    echo $1
+    echo $1 | cut -d "/" -f 2
+    PLUGIN_NAME=$(echo $1 | cut -d "/" -f 2)
+    if [ -d "$ZDOTDIR/plugins/$PLUGIN_NAME" ]; then 
+        # For plugins
+        # zsh_add_file "plugins/$PLUGIN_NAME/$PLUGIN_NAME.plugin.zsh" || \
+        # zsh_add_file "plugins/$PLUGIN_NAME/$PLUGIN_NAME.zsh"
+        True
+    else
+        # git clone "https://github.com/$1.git" "$ZDOTDIR/plugins/$PLUGIN_NAME"
+        True
+    fi
+}
+
+
+# Pulling plugin from oh my zsh
+function git_omz_plugins() (
+  # git_omz_plugins "http://github.com/ohmyzsh/ohmyzsh/" "plugins/osx"
+  rurl="$1" tmpdir="$ZDOTDIR/tmp" && shift 4
+  # echo $tmpdir
+
+  mkdir -p "$tmpdir"
+  cd "$tmpdir"
+
+  git init
+  git remote add -f origin "$rurl"
+  git config core.sparseCheckout true
+
+  # Loops over remaining args
+  for i; do
+    echo "$i" >> .git/info/sparse-checkout
+  done
+  git pull origin master
+
+  echo "Removing .git"
+  rm -rf .git/
+  echo "Moving Plugin to $ZDOTDIR"
+  mv plugins/* $ZDOTDIR/plugins/
+  echo "Removing $tmpdir"
+  rm -rf $tmpdir
+  echo "Completed running git_omz_plugins function"
+)
+
+
+function omz_add_plugin() {
+    PLUGIN_NAME=$(echo $1 )
+    if [ -d "$ZDOTDIR/plugins/$PLUGIN_NAME" ]; then 
+        # For plugins
+        zsh_add_file "plugins/$PLUGIN_NAME/$PLUGIN_NAME.plugin.zsh" || \
+        zsh_add_file "plugins/$PLUGIN_NAME/$PLUGIN_NAME.zsh"
+    else
+
+        if read -q "choice?Do you want to install the $PLUGIN_NAME plugin: "; then
+            echo 
+            echo "burrrrrrr add plugin"
+            git_omz_plugins "http://github.com/ohmyzsh/ohmyzsh/" "plugins/$PLUGIN_NAME"
+        else
+            echo
+            echo "Skipping..."
+        fi
+    fi
+}
+
+
