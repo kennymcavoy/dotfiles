@@ -1,4 +1,5 @@
 # My Dotfiles
-Use stow to move easily
+
+Clone to a directory (ex. Dotfiles) and use stow to move easily
 (Brew install)
 
